@@ -1,0 +1,88 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: turnify-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: turnify
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - turnify-network
+
+  # Redis (Cache + BullMQ)
+  redis:
+    image: redis:7-alpine
+    container_name: turnify-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - turnify-network
+
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: turnify-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=turnify
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=turnify-dev-secret-key-2024
+      - JWT_EXPIRES_IN=1h
+      - APP_PORT=3000
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - turnify-network
+
+  # Frontend Application
+  frontend:
+    build: ./frontend
+    container_name: turnify-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - turnify-network
+
+  # pgAdmin (opcional - para gestión visual de PostgreSQL)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: turnify-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@turnify.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - turnify-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+
+networks:
+  turnify-network:
+    driver: bridge

@@ -1,0 +1,101 @@
+@use "tailwindcss";
+
+/* White-Label CSS Custom Properties */
+:root {
+  /* Primary Colors - Set dynamically by BrandingService */
+  --primary-color: #3b82f6;
+  --primary-color-dark: #2563eb;
+  --primary-color-light: #dbeafe;
+
+  /* Neutral Colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --border-color: #e5e7eb;
+
+  /* Status Colors */
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+  --info-color: #3b82f6;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Force default branding colors for auth pages */
+.auth-layout {
+  --primary-color: #3b82f6 !important;
+  --primary-color-dark: #2563eb !important;
+  --primary-color-light: #dbeafe !important;
+}
+
+/* Global styles for Turnify */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Global Button Styles using CSS Variables - Only for main app, not auth pages */
+:not(.auth-layout) .btn-primary {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-color-dark)) !important;
+  color: white !important;
+}
+
+:not(.auth-layout) .btn-primary:hover {
+  background: linear-gradient(135deg, var(--primary-color-dark), var(--primary-color-dark)) !important;
+}
+
+/* Links with primary color */
+a.primary-link {
+  color: var(--primary-color);
+}
+
+a.primary-link:hover {
+  color: var(--primary-color-dark);
+}
+
+/* Focus states */
+*:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}

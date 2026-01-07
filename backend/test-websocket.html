@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turnify - WebSocket Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 { color: #333; text-align: center; }
+        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .panel { 
+            background: white; 
+            border-radius: 8px; 
+            padding: 20px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 { margin-top: 0; color: #555; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; color: #333; }
+        input, textarea { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 4px; 
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover { background: #0056b3; }
+        button.success { background: #28a745; }
+        button.success:hover { background: #1e7e34; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #c82333; }
+        button.warning { background: #ffc107; color: #333; }
+        button.warning:hover { background: #e0a800; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .status { 
+            padding: 10px; 
+            border-radius: 4px; 
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        .status.connected { background: #d4edda; color: #155724; }
+        .status.disconnected { background: #f8d7da; color: #721c24; }
+        .status.connecting { background: #fff3cd; color: #856404; }
+        #log { 
+            background: #1e1e1e; 
+            color: #00ff00; 
+            padding: 15px; 
+            border-radius: 4px; 
+            height: 400px; 
+            overflow-y: auto; 
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .log-entry { margin-bottom: 8px; }
+        .log-entry.event { color: #00bfff; }
+        .log-entry.error { color: #ff6b6b; }
+        .log-entry.info { color: #98c379; }
+        .log-entry.send { color: #ffd700; }
+        .log-entry .timestamp { color: #888; }
+        pre { 
+            background: #2d2d2d; 
+            padding: 10px; 
+            border-radius: 4px; 
+            overflow-x: auto;
+            margin: 5px 0;
+            color: #abb2bf;
+        }
+        .full-width { grid-column: 1 / -1; }
+        .stats { 
+            display: flex; 
+            gap: 20px; 
+            margin-bottom: 15px;
+        }
+        .stat { 
+            background: #e9ecef; 
+            padding: 10px 15px; 
+            border-radius: 4px;
+            flex: 1;
+            text-align: center;
+        }
+        .stat-value { font-size: 24px; font-weight: bold; color: #007bff; }
+        .stat-label { font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>🔌 Turnify WebSocket Test Client</h1>
+    
+    <div class="container">
+        <!-- Panel de Conexión -->
+        <div class="panel">
+            <h2>🔐 Conexión</h2>
+            <div id="connectionStatus" class="status disconnected">⚪ Desconectado</div>
+            
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="email" value="admin@demo.com">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="password" value="Demo123!">
+            </div>
+            <div class="form-group">
+                <label>Server URL:</label>
+                <input type="text" id="serverUrl" value="http://localhost:3000">
+            </div>
+            
+            <button id="btnLogin" class="success">🔑 Login + Conectar</button>
+            <button id="btnDisconnect" class="danger" disabled>🔌 Desconectar</button>
+        </div>
+
+        <!-- Panel de Estadísticas -->
+        <div class="panel">
+            <h2>📊 Estadísticas</h2>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="eventsReceived">0</div>
+                    <div class="stat-label">Eventos Recibidos</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="eventsSent">0</div>
+                    <div class="stat-label">Eventos Enviados</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="notificationCount">0</div>
+                    <div class="stat-label">Notificaciones</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Token JWT:</label>
+                <textarea id="tokenDisplay" rows="3" readonly placeholder="Token se mostrará aquí después del login"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>User Info:</label>
+                <pre id="userInfo">No conectado</pre>
+            </div>
+        </div>
+
+        <!-- Panel de Acciones -->
+        <div class="panel">
+            <h2>🎯 Acciones de Prueba</h2>
+            
+            <h4>📅 Crear Reserva (genera evento booking.created)</h4>
+            <div class="form-group">
+                <label>Service ID:</label>
+                <input type="text" id="serviceId" placeholder="UUID del servicio">
+            </div>
+            <div class="form-group">
+                <label>Fecha (YYYY-MM-DD):</label>
+                <input type="date" id="bookingDate">
+            </div>
+            <div class="form-group">
+                <label>Hora (HH:mm):</label>
+                <input type="time" id="bookingTime" value="10:00">
+            </div>
+            <button id="btnCreateBooking" disabled>📅 Crear Reserva</button>
+            
+            <hr>
+            
+            <h4>🔔 Notificaciones</h4>
+            <button id="btnGetNotifications" disabled>📋 Ver Notificaciones</button>
+            <button id="btnGetUnreadCount" disabled>🔢 Contador No Leídas</button>
+            <button id="btnMarkAllRead" class="warning" disabled>✅ Marcar Todas Leídas</button>
+        </div>
+
+        <!-- Panel de Servicios -->
+        <div class="panel">
+            <h2>🛠️ Servicios Disponibles</h2>
+            <button id="btnLoadServices" disabled>🔄 Cargar Servicios</button>
+            <div id="servicesList" style="margin-top: 15px;">
+                <em>Conecta primero para ver los servicios</em>
+            </div>
+        </div>
+
+        <!-- Panel de Log -->
+        <div class="panel full-width">
+            <h2>📜 Event Log</h2>
+            <button id="btnClearLog">🗑️ Limpiar Log</button>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let accessToken = null;
+        let userId = null;
+        let tenantId = null;
+        let eventsReceived = 0;
+        let eventsSent = 0;
+        
+        const serverUrl = () => document.getElementById('serverUrl').value;
+        const log = (message, type = 'info', data = null) => {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            let html = `<div class="log-entry ${type}">`;
+            html += `<span class="timestamp">[${time}]</span> ${message}`;
+            if (data) {
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            html += '</div>';
+            logDiv.innerHTML += html;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        };
+
+        const updateStatus = (status, text) => {
+            const el = document.getElementById('connectionStatus');
+            el.className = `status ${status}`;
+            el.textContent = text;
+        };
+
+        const updateStats = () => {
+            document.getElementById('eventsReceived').textContent = eventsReceived;
+            document.getElementById('eventsSent').textContent = eventsSent;
+        };
+
+        const setButtonsEnabled = (enabled) => {
+            document.getElementById('btnDisconnect').disabled = !enabled;
+            document.getElementById('btnCreateBooking').disabled = !enabled;
+            document.getElementById('btnGetNotifications').disabled = !enabled;
+            document.getElementById('btnGetUnreadCount').disabled = !enabled;
+            document.getElementById('btnMarkAllRead').disabled = !enabled;
+            document.getElementById('btnLoadServices').disabled = !enabled;
+            document.getElementById('btnLogin').disabled = enabled;
+        };
+
+        // Login y obtener token
+        document.getElementById('btnLogin').onclick = async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            updateStatus('connecting', '🟡 Conectando...');
+            log('Iniciando login...', 'info');
+            
+            try {
+                const response = await fetch(`${serverUrl()}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Login failed: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                accessToken = data.accessToken;
+                userId = data.user.id;
+                tenantId = data.user.tenantId;
+                
+                document.getElementById('tokenDisplay').value = accessToken;
+                document.getElementById('userInfo').textContent = JSON.stringify({
+                    id: data.user.id,
+                    email: data.user.email,
+                    tenantId: data.user.tenantId,
+                    roles: data.user.roles
+                }, null, 2);
+                
+                log('✅ Login exitoso', 'info', { userId, tenantId });
+                
+                // Conectar WebSocket
+                connectWebSocket();
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                updateStatus('disconnected', '🔴 Error de login');
+            }
+        };
+
+        // Conectar WebSocket
+        const connectWebSocket = () => {
+            log('Conectando WebSocket...', 'info');
+            
+            socket = io(`${serverUrl()}/ws`, {
+                auth: { token: accessToken },
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                log('✅ WebSocket conectado!', 'info', { socketId: socket.id });
+                updateStatus('connected', '🟢 Conectado');
+                setButtonsEnabled(true);
+            });
+
+            socket.on('disconnect', (reason) => {
+                log(`⚠️ WebSocket desconectado: ${reason}`, 'error');
+                updateStatus('disconnected', '🔴 Desconectado');
+                setButtonsEnabled(false);
+            });
+
+            socket.on('connect_error', (error) => {
+                log(`❌ Error de conexión: ${error.message}`, 'error');
+                updateStatus('disconnected', '🔴 Error de conexión');
+            });
+
+            // Escuchar eventos de booking
+            socket.on('booking.created', (data) => {
+                eventsReceived++;
+                updateStats();
+                log('📅 BOOKING CREATED', 'event', data);
+            });
+
+            socket.on('booking.updated', (data) => {
+                eventsReceived++;
+                updateStats();
+                log('📝 BOOKING UPDATED', 'event', data);
+            });
+
+            socket.on('booking.cancelled', (data) => {
+                eventsReceived++;
+                updateStats();
+                log('❌ BOOKING CANCELLED', 'event', data);
+            });
+
+            // Escuchar eventos de suscripción
+            socket.on('subscription.updated', (data) => {
+                eventsReceived++;
+                updateStats();
+                log('💳 SUBSCRIPTION UPDATED', 'event', data);
+            });
+
+            socket.on('subscription.expiring', (data) => {
+                eventsReceived++;
+                updateStats();
+                log('⚠️ SUBSCRIPTION EXPIRING', 'event', data);
+            });
+
+            socket.on('subscription.expired', (data) => {
+                eventsReceived++;
+                updateStats();
+                log('🚫 SUBSCRIPTION EXPIRED', 'event', data);
+            });
+
+            // Escuchar notificaciones
+            socket.on('notification.new', (data) => {
+                eventsReceived++;
+                updateStats();
+                const count = parseInt(document.getElementById('notificationCount').textContent) + 1;
+                document.getElementById('notificationCount').textContent = count;
+                log('🔔 NEW NOTIFICATION', 'event', data);
+            });
+
+            socket.on('notification.read', (data) => {
+                eventsReceived++;
+                updateStats();
+                log('✅ NOTIFICATION READ', 'event', data);
+            });
+
+            // Usuario conectado/desconectado
+            socket.on('user.connected', (data) => {
+                eventsReceived++;
+                updateStats();
+                log('👤 USER CONNECTED', 'event', data);
+            });
+
+            socket.on('user.disconnected', (data) => {
+                eventsReceived++;
+                updateStats();
+                log('👤 USER DISCONNECTED', 'event', data);
+            });
+        };
+
+        // Desconectar
+        document.getElementById('btnDisconnect').onclick = () => {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+            accessToken = null;
+            updateStatus('disconnected', '⚪ Desconectado');
+            setButtonsEnabled(false);
+            log('Desconectado manualmente', 'info');
+        };
+
+        // Cargar servicios
+        document.getElementById('btnLoadServices').onclick = async () => {
+            try {
+                const response = await fetch(`${serverUrl()}/api/services`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const services = await response.json();
+                
+                const servicesList = document.getElementById('servicesList');
+                if (services.length === 0) {
+                    servicesList.innerHTML = '<em>No hay servicios disponibles</em>';
+                } else {
+                    servicesList.innerHTML = services.map(s => `
+                        <div style="background: #f8f9fa; padding: 10px; margin-bottom: 8px; border-radius: 4px;">
+                            <strong>${s.name}</strong> - $${s.price}<br>
+                            <small style="color: #666;">ID: ${s.id}</small>
+                            <button onclick="selectService('${s.id}')" style="float: right; padding: 5px 10px;">Seleccionar</button>
+                        </div>
+                    `).join('');
+                }
+                log('Servicios cargados', 'info', services);
+            } catch (error) {
+                log(`Error cargando servicios: ${error.message}`, 'error');
+            }
+        };
+
+        window.selectService = (id) => {
+            document.getElementById('serviceId').value = id;
+            log(`Servicio seleccionado: ${id}`, 'info');
+        };
+
+        // Crear reserva
+        document.getElementById('btnCreateBooking').onclick = async () => {
+            const serviceId = document.getElementById('serviceId').value;
+            const date = document.getElementById('bookingDate').value;
+            const time = document.getElementById('bookingTime').value;
+            
+            if (!serviceId || !date || !time) {
+                log('❌ Complete todos los campos de reserva', 'error');
+                return;
+            }
+            
+            const startTime = new Date(`${date}T${time}:00`).toISOString();
+            
+            try {
+                log('Creando reserva...', 'send');
+                eventsSent++;
+                updateStats();
+                
+                const response = await fetch(`${serverUrl()}/api/bookings`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ serviceId, startTime })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Error creating booking');
+                }
+                
+                const booking = await response.json();
+                log('✅ Reserva creada! Esperando evento WebSocket...', 'info', booking);
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        };
+
+        // Obtener notificaciones
+        document.getElementById('btnGetNotifications').onclick = async () => {
+            try {
+                const response = await fetch(`${serverUrl()}/api/notifications`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const notifications = await response.json();
+                log('📋 Notificaciones', 'info', notifications);
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        };
+
+        // Contador de no leídas
+        document.getElementById('btnGetUnreadCount').onclick = async () => {
+            try {
+                const response = await fetch(`${serverUrl()}/api/notifications/unread/count`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const data = await response.json();
+                document.getElementById('notificationCount').textContent = data.count || 0;
+                log('🔢 Contador de notificaciones no leídas', 'info', data);
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        };
+
+        // Marcar todas como leídas
+        document.getElementById('btnMarkAllRead').onclick = async () => {
+            try {
+                const response = await fetch(`${serverUrl()}/api/notifications/mark-all-read`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const data = await response.json();
+                document.getElementById('notificationCount').textContent = '0';
+                log('✅ Todas las notificaciones marcadas como leídas', 'info', data);
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        };
+
+        // Limpiar log
+        document.getElementById('btnClearLog').onclick = () => {
+            document.getElementById('log').innerHTML = '';
+            eventsReceived = 0;
+            eventsSent = 0;
+            updateStats();
+        };
+
+        // Set default date to tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('bookingDate').value = tomorrow.toISOString().split('T')[0];
+    </script>
+</body>
+</html>
