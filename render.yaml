@@ -4,7 +4,7 @@ services:
     name: turnify-backend
     env: node
     plan: free
-    repo: https://github.com/FRANK17d/turnify # Se autodetectará al conectar
+    repo: https://github.com/FRANK17d/turnify
     rootDir: backend
     buildCommand: npm install && npm run build
     startCommand: npm run start:prod
@@ -16,7 +16,7 @@ services:
       - key: APP_PORT
         value: 3000
       - key: APP_URL
-        value: https://turnify-backend.onrender.com # Ajustar post-deploy
+        value: https://turnify-backend.onrender.com
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -45,25 +45,15 @@ services:
         fromDatabase:
           name: turnify-db
           property: password
-      - key: REDIS_HOST
-        fromService:
-          type: redis
-          name: turnify-redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          type: redis
-          name: turnify-redis
-          property: port
+      # Redis (Configurar manualmente en Dashboard usando Upstash o similar)
+      # - key: REDIS_HOST
+      #   value: ...
+      # - key: REDIS_PORT
+      #   value: ...
 
 databases:
-  # PostgreSQL
+  # PostgreSQL (Gratis en Render)
   - name: turnify-db
     plan: free
     databaseName: turnify
     user: turnify_user
-
-  # Redis
-  - name: turnify-redis
-    plan: free
-    ipAllowList: [] # Solo interno
