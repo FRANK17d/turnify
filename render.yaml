@@ -4,7 +4,7 @@ services:
     name: turnify-backend
     env: node
     plan: free
-    repo: https://github.com/TU_USUARIO/turnify # Se autodetectará al conectar
+    repo: https://github.com/FRANK17d/turnify # Se autodetectará al conectar
     rootDir: backend
     buildCommand: npm install && npm run build
     startCommand: npm run start:prod
