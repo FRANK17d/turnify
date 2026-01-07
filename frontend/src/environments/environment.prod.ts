@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
-  // REEMPLAZAR CON TU URL DE RAILWAY
-  // Ejemplo: https://turnify-production.up.railway.app/api
-  apiUrl: 'https://TU_BACKEND_EN_RAILWAY.up.railway.app/api',
-  wsUrl: 'https://TU_BACKEND_EN_RAILWAY.up.railway.app',
+  // REEMPLAZAR CON TU URL DE RENDER
+  // Ejemplo: https://turnify-backend.onrender.com/api
+  apiUrl: 'https://TU_BACKEND_EN_RENDER.onrender.com/api',
+  wsUrl: 'https://TU_BACKEND_EN_RENDER.onrender.com',
 };

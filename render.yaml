@@ -1,0 +1,69 @@
+services:
+  # Backend API
+  - type: web
+    name: turnify-backend
+    env: node
+    plan: free
+    repo: https://github.com/TU_USUARIO/turnify # Se autodetectará al conectar
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: APP_PORT
+        value: 3000
+      - key: APP_URL
+        value: https://turnify-backend.onrender.com # Ajustar post-deploy
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: DB_HOST
+        fromDatabase:
+          name: turnify-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: turnify-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: turnify-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: turnify-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: turnify-db
+          property: password
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: turnify-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: turnify-redis
+          property: port
+
+databases:
+  # PostgreSQL
+  - name: turnify-db
+    plan: free
+    databaseName: turnify
+    user: turnify_user
+
+  # Redis
+  - name: turnify-redis
+    plan: free
+    ipAllowList: [] # Solo interno
