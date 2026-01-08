@@ -29,14 +29,14 @@ export class EmailService {
     this.transporter = nodemailer.createTransport({
       host,
       port,
-      secure: false, // true for 465, false for other ports
+      secure: port === 465, // true for 465 (SSL), false for 587 (STARTTLS)
       auth: {
         user,
         pass,
       },
-      connectionTimeout: 10000, // 10 segundos
-      greetingTimeout: 10000,
-      socketTimeout: 30000, // 30 segundos
+      connectionTimeout: 15000, // 15 segundos
+      greetingTimeout: 15000,
+      socketTimeout: 60000, // 60 segundos
     });
 
     this.fromAddress = this.configService.get<string>('mail.from') || 'noreply@turnify.com';
