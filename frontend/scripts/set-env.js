@@ -2,9 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 // Obtener las variables de entorno
-// Si no existe (local), usa un valor por defecto o localhost
-const apiUrl = process.env.API_URL;
-const wsUrl = process.env.WS_URL;
+// Si no existe, usa la URL de producción por defecto
+const apiUrl = process.env.API_URL || 'https://turnify-backend-k5vo.onrender.com/api';
+const wsUrl = process.env.WS_URL || 'https://turnify-backend-k5vo.onrender.com';
 
 const envConfigFile = `export const environment = {
   production: true,
