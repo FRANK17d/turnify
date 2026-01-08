@@ -99,6 +99,8 @@ import { Notification } from './modules/notifications/entities/notification.enti
         redis: {
           host: configService.get('redis.host'),
           port: configService.get('redis.port'),
+          password: configService.get('redis.password'),
+          tls: configService.get('redis.tls') ? {} : undefined,
         },
       }),
     }),
