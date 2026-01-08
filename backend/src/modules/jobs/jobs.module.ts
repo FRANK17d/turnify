@@ -2,9 +2,6 @@ import { Module, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 
-// PgBoss Module
-import { PgBossModule } from './pgboss.module';
-
 // Services
 import { EmailService } from './services/email.service';
 import { EmailQueueService } from './services/email-queue.service';
@@ -23,9 +20,6 @@ import { Notification } from '../notifications/entities/notification.entity';
   imports: [
     // Scheduler module for cron jobs
     ScheduleModule.forRoot(),
-
-    // PgBoss for job queues (uses PostgreSQL instead of Redis)
-    PgBossModule,
 
     // Entities needed by services
     TypeOrmModule.forFeature([

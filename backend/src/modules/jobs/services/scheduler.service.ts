@@ -1,9 +1,7 @@
-import { Injectable, Logger, OnModuleInit, Inject } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThan } from 'typeorm';
-import PgBoss from 'pg-boss';
-import { PG_BOSS } from '../pgboss.module';
 import { EmailQueueService } from './email-queue.service';
 import { Booking, BookingStatus } from '../../bookings/entities/booking.entity';
 import { Subscription, SubscriptionStatus } from '../../subscriptions/entities/subscription.entity';
@@ -13,7 +11,6 @@ export class SchedulerService implements OnModuleInit {
   private readonly logger = new Logger(SchedulerService.name);
 
   constructor(
-    @Inject(PG_BOSS) private readonly boss: any,
     private readonly emailQueue: EmailQueueService,
     @InjectRepository(Booking) private bookingRepository: Repository<Booking>,
     @InjectRepository(Subscription) private subscriptionRepository: Repository<Subscription>,
@@ -85,7 +82,7 @@ export class SchedulerService implements OnModuleInit {
           const daysRemaining = Math.ceil((sub.currentPeriodEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
 
           await this.emailQueue.sendSubscriptionExpiringEmail({
-            email: '', // Will be sent when domain is verified
+            email: '', // Email will be sent when domain is verified
             userName: tenant.name,
             planName: sub.plan?.name || 'Plan',
             tenantName: tenant.name,
@@ -119,14 +116,13 @@ export class SchedulerService implements OnModuleInit {
       });
 
       for (const sub of subscriptions) {
-        // Marcar como expirada
         sub.status = SubscriptionStatus.PAST_DUE;
         await this.subscriptionRepository.save(sub);
 
         const tenant = sub.tenant;
         if (tenant) {
           await this.emailQueue.sendSubscriptionExpiredEmail({
-            email: '', // Will be sent when domain is verified
+            email: '', // Email will be sent when domain is verified
             userName: tenant.name,
             planName: sub.plan?.name || 'Plan',
             tenantName: tenant.name,
@@ -144,7 +140,7 @@ export class SchedulerService implements OnModuleInit {
    * Log de estado cada 30 minutos
    */
   @Cron(CronExpression.EVERY_30_MINUTES)
-  async logQueueStatus() {
-    this.logger.debug('PgBoss queue is running');
+  async logStatus() {
+    this.logger.debug('Scheduler running...');
   }
 }
