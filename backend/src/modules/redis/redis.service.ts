@@ -1,14 +1,17 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
 @Injectable()
 export class RedisService {
   private client: Redis;
 
-  constructor() {
+  constructor(private readonly configService: ConfigService) {
     this.client = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379', 10),
+      host: this.configService.get<string>('redis.host'),
+      port: this.configService.get<number>('redis.port'),
+      password: this.configService.get<string>('redis.password'),
+      tls: this.configService.get('redis.tls') ? {} : undefined, // Habilitar TLS si es necesario (Upstash)
     });
   }
 
