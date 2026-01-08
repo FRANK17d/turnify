@@ -95,21 +95,45 @@ import { Notification } from './modules/notifications/entities/notification.enti
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        redis: {
-          host: configService.get('redis.host'),
-          port: configService.get('redis.port'),
-          password: configService.get('redis.password'),
-          tls: configService.get('redis.tls') ? {} : undefined,
-          // Reconexión automática para Upstash
-          maxRetriesPerRequest: null, // Bull requiere esto
-          enableReadyCheck: false,
-          retryStrategy: (times: number) => {
-            // Reconectar después de 1 segundo, máximo 30 segundos
-            return Math.min(times * 1000, 30000);
+      useFactory: (configService: ConfigService) => {
+        const host = configService.get('redis.host');
+        const port = configService.get('redis.port');
+        const password = configService.get('redis.password');
+        const useTls = configService.get('redis.tls');
+
+        // Si hay REDIS_URL, usar directamente (formato: rediss://:password@host:port)
+        const redisUrl = process.env.REDIS_URL;
+
+        if (redisUrl) {
+          console.log('[BullModule] Using REDIS_URL connection string');
+          return {
+            redis: redisUrl,
+          };
+        }
+
+        // Construir URL para Upstash (más confiable que host/port separados)
+        if (password && host.includes('upstash')) {
+          const url = `rediss://default:${password}@${host}:${port}`;
+          console.log(`[BullModule] Using constructed Upstash URL: rediss://default:***@${host}:${port}`);
+          return {
+            redis: url,
+          };
+        }
+
+        // Fallback: configuración tradicional para Redis local
+        console.log(`[BullModule] Using traditional config: ${host}:${port}`);
+        return {
+          redis: {
+            host,
+            port,
+            password,
+            tls: useTls ? {} : undefined,
+            maxRetriesPerRequest: null,
+            enableReadyCheck: false,
+            retryStrategy: (times: number) => Math.min(times * 1000, 30000),
           },
-        },
-      }),
+        };
+      },
     }),
 
     // Feature Modules
