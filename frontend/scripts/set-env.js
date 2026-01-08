@@ -3,8 +3,8 @@ const path = require('path');
 
 // Obtener las variables de entorno
 // Si no existe (local), usa un valor por defecto o localhost
-const apiUrl = process.env.API_URL || 'http://localhost:3000/api';
-const wsUrl = process.env.WS_URL || 'http://localhost:3000';
+const apiUrl = process.env.API_URL;
+const wsUrl = process.env.WS_URL;
 
 const envConfigFile = `export const environment = {
   production: true,
