@@ -19,14 +19,24 @@ export class EmailService {
   private readonly frontendUrl: string;
 
   constructor(private configService: ConfigService) {
+    const host = this.configService.get<string>('mail.host');
+    const port = this.configService.get<number>('mail.port');
+    const user = this.configService.get<string>('mail.user');
+    const pass = this.configService.get<string>('mail.password');
+
+    this.logger.log(`📧 Email Config: host=${host}, port=${port}, user=${user ? '***' : 'MISSING'}, pass=${pass ? '***' : 'MISSING'}`);
+
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('mail.host'),
-      port: this.configService.get<number>('mail.port'),
+      host,
+      port,
       secure: false, // true for 465, false for other ports
       auth: {
-        user: this.configService.get<string>('mail.user'),
-        pass: this.configService.get<string>('mail.password'),
+        user,
+        pass,
       },
+      connectionTimeout: 10000, // 10 segundos
+      greetingTimeout: 10000,
+      socketTimeout: 30000, // 30 segundos
     });
 
     this.fromAddress = this.configService.get<string>('mail.from') || 'noreply@turnify.com';
