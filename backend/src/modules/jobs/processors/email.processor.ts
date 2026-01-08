@@ -1,6 +1,6 @@
-import { Process, Processor, OnQueueActive, OnQueueError, OnQueueFailed } from '@nestjs/bull';
+import { Process, Processor, OnQueueActive, OnQueueError, OnQueueFailed, InjectQueue } from '@nestjs/bull';
 import { Logger, OnModuleInit } from '@nestjs/common';
-import type { Job } from 'bull';
+import type { Job, Queue } from 'bull';
 import { EmailService } from '../services/email.service';
 import {
   QUEUE_NAMES,
@@ -17,25 +17,50 @@ import {
 export class EmailProcessor implements OnModuleInit {
   private readonly logger = new Logger(EmailProcessor.name);
 
-  constructor(private readonly emailService: EmailService) { }
+  constructor(
+    private readonly emailService: EmailService,
+    @InjectQueue(QUEUE_NAMES.EMAIL) private readonly emailQueue: Queue,
+  ) { }
 
-  onModuleInit() {
+  async onModuleInit() {
     this.logger.log('📧 EmailProcessor initialized and ready to process jobs');
+
+    // Limpiar jobs estancados al iniciar
+    try {
+      const activeJobs = await this.emailQueue.getActive();
+      const stalledCount = activeJobs.length;
+
+      if (stalledCount > 0) {
+        this.logger.warn(`🧹 Found ${stalledCount} stalled/active jobs. Cleaning up...`);
+
+        // Mover jobs activos a fallidos para que puedan reintentarse
+        for (const job of activeJobs) {
+          await job.moveToFailed({ message: 'Job was stalled and cleaned on restart' }, true);
+        }
+
+        this.logger.log(`✅ Cleaned ${stalledCount} stalled jobs`);
+      }
+
+      const counts = await this.emailQueue.getJobCounts();
+      this.logger.log(`📊 Queue status: waiting=${counts.waiting}, active=${counts.active}, completed=${counts.completed}, failed=${counts.failed}`);
+    } catch (error) {
+      this.logger.error(`Error cleaning stalled jobs: ${error.message}`);
+    }
   }
 
   @OnQueueActive()
   onActive(job: Job) {
-    this.logger.log(`Processing job ${job.id} of type ${job.name}`);
+    this.logger.log(`🔄 Processing job ${job.id} of type ${job.name}`);
   }
 
   @OnQueueError()
   onError(error: Error) {
-    this.logger.error(`Queue error: ${error.message}`);
+    this.logger.error(`❌ Queue error: ${error.message}`);
   }
 
   @OnQueueFailed()
   onFailed(job: Job, error: Error) {
-    this.logger.error(`Job ${job.id} failed: ${error.message}`);
+    this.logger.error(`❌ Job ${job.id} failed: ${error.message}`);
   }
 
 
