@@ -6,7 +6,7 @@ services:
     plan: free
     repo: https://github.com/FRANK17d/turnify
     rootDir: backend
-    buildCommand: npm install && npm run build
+    buildCommand: rm -rf dist && npm install && npm run build
     startCommand: npm run start:prod:seed
     envVars:
       - key: NODE_ENV
