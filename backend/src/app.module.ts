@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { BullModule } from '@nestjs/bull';
+
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -91,35 +91,7 @@ import { Notification } from './modules/notifications/entities/notification.enti
       },
     ]),
 
-    // Redis + BullMQ (siguiendo documentación oficial de Upstash)
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const host = configService.get('redis.host');
-        const port = configService.get('redis.port');
-        const password = configService.get('redis.password');
-        const isUpstash = host?.includes('upstash');
 
-        console.log(`[BullModule] Redis config: host=${host}, port=${port}, TLS=${isUpstash}`);
-
-        return {
-          redis: {
-            host,
-            port,
-            password,
-            // Según docs de Upstash: usar tls: {} para conexiones TLS
-            tls: isUpstash ? {} : undefined,
-            // Configuración para Bull con Redis cloud
-            maxRetriesPerRequest: null,
-            enableReadyCheck: false,
-            connectTimeout: 30000,
-            keepAlive: 30000,
-            family: 4, // Forzar IPv4
-          },
-        };
-      },
-    }),
 
     // Feature Modules
     RedisModule,

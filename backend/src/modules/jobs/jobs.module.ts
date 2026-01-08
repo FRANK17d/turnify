@@ -1,21 +1,14 @@
 import { Module, Global } from '@nestjs/common';
-import { BullModule } from '@nestjs/bull';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 
-// Constants
-import { QUEUE_NAMES } from './constants/job.constants';
+// PgBoss Module
+import { PgBossModule } from './pgboss.module';
 
 // Services
 import { EmailService } from './services/email.service';
-import { JobsService } from './services/jobs.service';
+import { EmailQueueService } from './services/email-queue.service';
 import { SchedulerService } from './services/scheduler.service';
-
-// Processors
-import { EmailProcessor } from './processors/email.processor';
-import { BookingProcessor } from './processors/booking.processor';
-import { SubscriptionProcessor } from './processors/subscription.processor';
-import { NotificationProcessor } from './processors/notification.processor';
 
 // Entities
 import { Booking } from '../bookings/entities/booking.entity';
@@ -31,22 +24,10 @@ import { Notification } from '../notifications/entities/notification.entity';
     // Scheduler module for cron jobs
     ScheduleModule.forRoot(),
 
-    // Register queues
-    BullModule.registerQueue(
-      {
-        name: QUEUE_NAMES.EMAIL,
-        settings: {
-          lockDuration: 300000, // 5 minutos
-          stalledInterval: 300000, // 5 minutos
-          maxStalledCount: 50,
-        },
-      },
-      { name: QUEUE_NAMES.BOOKING },
-      { name: QUEUE_NAMES.SUBSCRIPTION },
-      { name: QUEUE_NAMES.NOTIFICATION },
-    ),
+    // PgBoss for job queues (uses PostgreSQL instead of Redis)
+    PgBossModule,
 
-    // Entities needed by processors
+    // Entities needed by services
     TypeOrmModule.forFeature([
       Booking,
       User,
@@ -59,15 +40,9 @@ import { Notification } from '../notifications/entities/notification.entity';
   providers: [
     // Services
     EmailService,
-    JobsService,
+    EmailQueueService,
     SchedulerService,
-
-    // Processors
-    EmailProcessor,
-    BookingProcessor,
-    SubscriptionProcessor,
-    NotificationProcessor,
   ],
-  exports: [JobsService, EmailService],
+  exports: [EmailQueueService, EmailService],
 })
 export class JobsModule { }

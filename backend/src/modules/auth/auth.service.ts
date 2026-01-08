@@ -19,7 +19,7 @@ import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 import { RedisService } from '../redis/redis.service';
-import { JobsService } from '../jobs/services/jobs.service';
+import { EmailQueueService } from '../jobs/services/email-queue.service';
 import {
   LoginDto,
   RegisterDto,
@@ -48,7 +48,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private redisService: RedisService,
-    private jobsService: JobsService,
+    private emailQueueService: EmailQueueService,
     private dataSource: DataSource,
   ) { }
 
@@ -274,7 +274,7 @@ export class AuthService {
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
       const resetUrl = `${frontendUrl}/auth/reset-password?token=${token}`;
 
-      await this.jobsService.sendPasswordResetEmail({
+      await this.emailQueueService.sendPasswordResetEmail({
         email: user.email,
         userName: user.firstName || user.email,
         resetUrl,
@@ -333,7 +333,7 @@ export class AuthService {
 
     // Enviar email de confirmación de cambio
     try {
-      await this.jobsService.sendPasswordChangedEmail({
+      await this.emailQueueService.sendPasswordChangedEmail({
         email: resetToken.user.email,
         userName: resetToken.user.firstName || resetToken.user.email,
       });

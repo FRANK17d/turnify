@@ -12,7 +12,7 @@ import { Service } from '../services/entities/service.entity';
 import { AuditLog, AuditAction } from '../audit/entities/audit-log.entity';
 import { User } from '../users/entities/user.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
-import { JobsService } from '../jobs/services/jobs.service';
+import { EmailQueueService } from '../jobs/services/email-queue.service';
 import { WebsocketsGateway } from '../websockets/websockets.gateway';
 import { CreateBookingDto, UpdateBookingDto } from './dto';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -32,7 +32,7 @@ export class BookingsService {
     @InjectRepository(Tenant)
     private tenantRepository: Repository<Tenant>,
 
-    private jobsService: JobsService,
+    private emailQueueService: EmailQueueService,
     private websocketsGateway: WebsocketsGateway, // Se mantiene gateway por los eventos emitBookingCreated que no son notificaciones de usuario sino de admin
     private notificationsService: NotificationsService,
   ) { }
@@ -378,7 +378,7 @@ export class BookingsService {
       }
 
       if (user?.email && tenant) {
-        await this.jobsService.sendBookingCreated({
+        await this.emailQueueService.sendBookingCreated({
           email: user.email,
           userName: user.firstName || user.email,
           serviceName: service.name,
@@ -423,7 +423,7 @@ export class BookingsService {
       }
 
       if (user?.email && tenant) {
-        await this.jobsService.sendBookingConfirmation({
+        await this.emailQueueService.sendBookingConfirmation({
           email: user.email,
           userName: user.firstName || user.email,
           serviceName: service.name,
@@ -470,7 +470,7 @@ export class BookingsService {
       }
 
       if (user?.email && tenant && service) {
-        await this.jobsService.sendBookingCancellation({
+        await this.emailQueueService.sendBookingCancellation({
           email: user.email,
           userName: user.firstName || user.email,
           serviceName: service.name,
@@ -518,7 +518,7 @@ export class BookingsService {
 
       for (const admin of adminsToNotify) {
         if (admin.email && tenant) {
-          await this.jobsService.sendAdminNewBooking({
+          await this.emailQueueService.sendAdminNewBooking({
             email: admin.email,
             adminName: admin.firstName || 'Admin',
             clientName: `${client.firstName} ${client.lastName || ''}`.trim(),
@@ -564,7 +564,7 @@ export class BookingsService {
 
       for (const admin of adminsToNotify) {
         if (admin.email && tenant) {
-          await this.jobsService.sendAdminCancellation({
+          await this.emailQueueService.sendAdminCancellation({
             email: admin.email,
             adminName: admin.firstName || 'Admin',
             clientName: `${client.firstName} ${client.lastName || ''}`.trim(),

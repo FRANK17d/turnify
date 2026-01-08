@@ -1,12 +1,23 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { JobsService } from './jobs.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Between, LessThan } from 'typeorm';
+import PgBoss from 'pg-boss';
+import { PG_BOSS } from '../pgboss.module';
+import { EmailQueueService } from './email-queue.service';
+import { Booking, BookingStatus } from '../../bookings/entities/booking.entity';
+import { Subscription, SubscriptionStatus } from '../../subscriptions/entities/subscription.entity';
 
 @Injectable()
 export class SchedulerService implements OnModuleInit {
   private readonly logger = new Logger(SchedulerService.name);
 
-  constructor(private readonly jobsService: JobsService) {}
+  constructor(
+    @Inject(PG_BOSS) private readonly boss: any,
+    private readonly emailQueue: EmailQueueService,
+    @InjectRepository(Booking) private bookingRepository: Repository<Booking>,
+    @InjectRepository(Subscription) private subscriptionRepository: Repository<Subscription>,
+  ) { }
 
   onModuleInit() {
     this.logger.log('Scheduler service initialized');
@@ -14,13 +25,37 @@ export class SchedulerService implements OnModuleInit {
 
   /**
    * Envía recordatorios de reservas cada hora
-   * Ejecuta a las :00 de cada hora
    */
   @Cron(CronExpression.EVERY_HOUR)
   async handleBookingReminders() {
     this.logger.log('Running scheduled booking reminders check');
     try {
-      await this.jobsService.triggerBookingReminders();
+      const now = new Date();
+      const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
+      const inTwoHours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+      const bookings = await this.bookingRepository.find({
+        where: {
+          startTime: Between(inOneHour, inTwoHours),
+          status: BookingStatus.CONFIRMED,
+        },
+        relations: ['user', 'service', 'tenant'],
+      });
+
+      for (const booking of bookings) {
+        if (booking.user?.email) {
+          await this.emailQueue.sendBookingReminder({
+            email: booking.user.email,
+            userName: `${booking.user.firstName} ${booking.user.lastName}`,
+            serviceName: booking.service?.name || 'Servicio',
+            date: booking.startTime.toLocaleDateString('es-ES'),
+            time: booking.startTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+            tenantName: booking.tenant?.name || 'Empresa',
+          });
+        }
+      }
+
+      this.logger.log(`Sent ${bookings.length} booking reminders`);
     } catch (error) {
       this.logger.error(`Error in booking reminders cron: ${error.message}`);
     }
@@ -33,7 +68,34 @@ export class SchedulerService implements OnModuleInit {
   async handleExpiringSubscriptions() {
     this.logger.log('Running scheduled expiring subscriptions check');
     try {
-      await this.jobsService.triggerExpiringSubscriptionsCheck();
+      const now = new Date();
+      const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+      const subscriptions = await this.subscriptionRepository.find({
+        where: {
+          currentPeriodEnd: Between(now, in7Days),
+          status: SubscriptionStatus.ACTIVE,
+        },
+        relations: ['tenant', 'plan'],
+      });
+
+      for (const sub of subscriptions) {
+        const tenant = sub.tenant;
+        if (tenant) {
+          const daysRemaining = Math.ceil((sub.currentPeriodEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+
+          await this.emailQueue.sendSubscriptionExpiringEmail({
+            email: '', // Will be sent when domain is verified
+            userName: tenant.name,
+            planName: sub.plan?.name || 'Plan',
+            tenantName: tenant.name,
+            expirationDate: sub.currentPeriodEnd.toLocaleDateString('es-ES'),
+            daysRemaining,
+          });
+        }
+      }
+
+      this.logger.log(`Notified ${subscriptions.length} expiring subscriptions`);
     } catch (error) {
       this.logger.error(`Error in expiring subscriptions cron: ${error.message}`);
     }
@@ -46,22 +108,43 @@ export class SchedulerService implements OnModuleInit {
   async handleExpiredSubscriptions() {
     this.logger.log('Running scheduled expired subscriptions check');
     try {
-      await this.jobsService.triggerExpiredSubscriptionsCheck();
+      const now = new Date();
+
+      const subscriptions = await this.subscriptionRepository.find({
+        where: {
+          currentPeriodEnd: LessThan(now),
+          status: SubscriptionStatus.ACTIVE,
+        },
+        relations: ['tenant', 'plan'],
+      });
+
+      for (const sub of subscriptions) {
+        // Marcar como expirada
+        sub.status = SubscriptionStatus.PAST_DUE;
+        await this.subscriptionRepository.save(sub);
+
+        const tenant = sub.tenant;
+        if (tenant) {
+          await this.emailQueue.sendSubscriptionExpiredEmail({
+            email: '', // Will be sent when domain is verified
+            userName: tenant.name,
+            planName: sub.plan?.name || 'Plan',
+            tenantName: tenant.name,
+          });
+        }
+      }
+
+      this.logger.log(`Processed ${subscriptions.length} expired subscriptions`);
     } catch (error) {
       this.logger.error(`Error in expired subscriptions cron: ${error.message}`);
     }
   }
 
   /**
-   * Log de estado de las colas cada 30 minutos (solo para debugging)
+   * Log de estado cada 30 minutos
    */
   @Cron(CronExpression.EVERY_30_MINUTES)
   async logQueueStatus() {
-    try {
-      const status = await this.jobsService.getQueueStatus();
-      this.logger.debug(`Queue status: ${JSON.stringify(status)}`);
-    } catch (error) {
-      this.logger.error(`Error getting queue status: ${error.message}`);
-    }
+    this.logger.debug('PgBoss queue is running');
   }
 }
