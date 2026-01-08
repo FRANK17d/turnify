@@ -110,13 +110,12 @@ import { Notification } from './modules/notifications/entities/notification.enti
             password,
             // Según docs de Upstash: usar tls: {} para conexiones TLS
             tls: isUpstash ? {} : undefined,
-            // Configuración recomendada para Bull con Redis cloud
+            // Configuración para Bull con Redis cloud
             maxRetriesPerRequest: null,
             enableReadyCheck: false,
-            lazyConnect: true,
             connectTimeout: 30000,
-            disconnectTimeout: 5000,
             keepAlive: 30000,
+            family: 4, // Forzar IPv4
           },
         };
       },
