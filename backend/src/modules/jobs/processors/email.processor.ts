@@ -1,5 +1,5 @@
-import { Process, Processor } from '@nestjs/bull';
-import { Logger } from '@nestjs/common';
+import { Process, Processor, OnQueueActive, OnQueueError, OnQueueFailed } from '@nestjs/bull';
+import { Logger, OnModuleInit } from '@nestjs/common';
 import type { Job } from 'bull';
 import { EmailService } from '../services/email.service';
 import {
@@ -14,10 +14,29 @@ import {
 } from '../constants/job.constants';
 
 @Processor(QUEUE_NAMES.EMAIL)
-export class EmailProcessor {
+export class EmailProcessor implements OnModuleInit {
   private readonly logger = new Logger(EmailProcessor.name);
 
   constructor(private readonly emailService: EmailService) { }
+
+  onModuleInit() {
+    this.logger.log('📧 EmailProcessor initialized and ready to process jobs');
+  }
+
+  @OnQueueActive()
+  onActive(job: Job) {
+    this.logger.log(`Processing job ${job.id} of type ${job.name}`);
+  }
+
+  @OnQueueError()
+  onError(error: Error) {
+    this.logger.error(`Queue error: ${error.message}`);
+  }
+
+  @OnQueueFailed()
+  onFailed(job: Job, error: Error) {
+    this.logger.error(`Job ${job.id} failed: ${error.message}`);
+  }
 
 
 
