@@ -25,17 +25,29 @@ export class EmailProcessor implements OnModuleInit {
   async onModuleInit() {
     this.logger.log('📧 EmailProcessor initialized and ready to process jobs');
 
-    // Limpiar jobs estancados al iniciar
+    // Limpiar jobs estancados de forma asíncrona (no bloquear el inicio)
+    this.cleanStalledJobs().catch(err => {
+      this.logger.error(`Error in background job cleanup: ${err.message}`);
+    });
+  }
+
+  private async cleanStalledJobs() {
     try {
+      // Esperar un poco para que la conexión se establezca
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
       const activeJobs = await this.emailQueue.getActive();
       const stalledCount = activeJobs.length;
 
       if (stalledCount > 0) {
         this.logger.warn(`🧹 Found ${stalledCount} stalled/active jobs. Cleaning up...`);
 
-        // Mover jobs activos a fallidos para que puedan reintentarse
         for (const job of activeJobs) {
-          await job.moveToFailed({ message: 'Job was stalled and cleaned on restart' }, true);
+          try {
+            await job.moveToFailed({ message: 'Job was stalled and cleaned on restart' }, true);
+          } catch (e) {
+            this.logger.warn(`Could not move job ${job.id} to failed: ${e.message}`);
+          }
         }
 
         this.logger.log(`✅ Cleaned ${stalledCount} stalled jobs`);
