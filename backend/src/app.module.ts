@@ -101,6 +101,13 @@ import { Notification } from './modules/notifications/entities/notification.enti
           port: configService.get('redis.port'),
           password: configService.get('redis.password'),
           tls: configService.get('redis.tls') ? {} : undefined,
+          // Reconexión automática para Upstash
+          maxRetriesPerRequest: null, // Bull requiere esto
+          enableReadyCheck: false,
+          retryStrategy: (times: number) => {
+            // Reconectar después de 1 segundo, máximo 30 segundos
+            return Math.min(times * 1000, 30000);
+          },
         },
       }),
     }),
