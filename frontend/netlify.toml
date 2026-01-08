@@ -1,0 +1,17 @@
+[build]
+  # Directorio base (porque es monorepo)
+  base = "frontend"
+  # Comando de build
+  command = "npm run build"
+  # Carpeta de salida del build (Angular 17+ con application builder)
+  publish = "dist/frontend/browser"
+
+[build.environment]
+  # Versión de Node.js
+  NODE_VERSION = "20"
+
+# Redirecciones para SPA (Angular Router)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
