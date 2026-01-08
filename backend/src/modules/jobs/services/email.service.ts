@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 
 export interface EmailOptions {
   to: string;
@@ -13,48 +12,39 @@ export interface EmailOptions {
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private transporter: Transporter;
+  private readonly resend: Resend;
   private readonly fromAddress: string;
   private readonly appName: string;
   private readonly frontendUrl: string;
 
   constructor(private configService: ConfigService) {
-    const host = this.configService.get<string>('mail.host');
-    const port = this.configService.get<number>('mail.port');
-    const user = this.configService.get<string>('mail.user');
-    const pass = this.configService.get<string>('mail.password');
+    const apiKey = this.configService.get<string>('mail.password'); // Usamos SMTP_PASSWORD para la API key
 
-    this.logger.log(`📧 Email Config: host=${host}, port=${port}, user=${user ? '***' : 'MISSING'}, pass=${pass ? '***' : 'MISSING'}`);
+    this.logger.log(`📧 Resend API Config: apiKey=${apiKey ? '***configured***' : 'MISSING'}`);
 
-    this.transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465, // true for 465 (SSL), false for 587 (STARTTLS)
-      auth: {
-        user,
-        pass,
-      },
-      connectionTimeout: 15000, // 15 segundos
-      greetingTimeout: 15000,
-      socketTimeout: 60000, // 60 segundos
-    });
+    this.resend = new Resend(apiKey);
 
-    this.fromAddress = this.configService.get<string>('mail.from') || 'noreply@turnify.com';
+    this.fromAddress = this.configService.get<string>('mail.from') || 'onboarding@resend.dev';
     this.appName = this.configService.get<string>('mail.appName') || 'Turnify';
     this.frontendUrl = this.configService.get<string>('mail.frontendUrl') || 'http://localhost:4200';
   }
 
   async sendEmail(options: EmailOptions): Promise<boolean> {
     try {
-      const info = await this.transporter.sendMail({
-        from: `"${this.appName}" <${this.fromAddress}>`,
-        to: options.to,
+      const { data, error } = await this.resend.emails.send({
+        from: `${this.appName} <${this.fromAddress}>`,
+        to: [options.to],
         subject: options.subject,
-        text: options.text || this.stripHtml(options.html),
         html: options.html,
+        text: options.text || this.stripHtml(options.html),
       });
 
-      this.logger.log(`Email enviado a ${options.to}: ${info.messageId}`);
+      if (error) {
+        this.logger.error(`Error enviando email a ${options.to}: ${error.message}`);
+        return false;
+      }
+
+      this.logger.log(`✅ Email enviado a ${options.to}: ${data?.id}`);
       return true;
     } catch (error) {
       this.logger.error(`Error enviando email a ${options.to}: ${error.message}`, error.stack);
