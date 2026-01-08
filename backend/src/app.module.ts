@@ -91,7 +91,7 @@ import { Notification } from './modules/notifications/entities/notification.enti
       },
     ]),
 
-    // Redis + BullMQ
+    // Redis + BullMQ (siguiendo documentación oficial de Upstash)
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -99,38 +99,24 @@ import { Notification } from './modules/notifications/entities/notification.enti
         const host = configService.get('redis.host');
         const port = configService.get('redis.port');
         const password = configService.get('redis.password');
-        const useTls = configService.get('redis.tls');
+        const isUpstash = host?.includes('upstash');
 
-        // Si hay REDIS_URL, usar directamente (formato: rediss://:password@host:port)
-        const redisUrl = process.env.REDIS_URL;
+        console.log(`[BullModule] Redis config: host=${host}, port=${port}, TLS=${isUpstash}`);
 
-        if (redisUrl) {
-          console.log('[BullModule] Using REDIS_URL connection string');
-          return {
-            redis: redisUrl,
-          };
-        }
-
-        // Construir URL para Upstash (más confiable que host/port separados)
-        if (password && host.includes('upstash')) {
-          const url = `rediss://default:${password}@${host}:${port}`;
-          console.log(`[BullModule] Using constructed Upstash URL: rediss://default:***@${host}:${port}`);
-          return {
-            redis: url,
-          };
-        }
-
-        // Fallback: configuración tradicional para Redis local
-        console.log(`[BullModule] Using traditional config: ${host}:${port}`);
         return {
           redis: {
             host,
             port,
             password,
-            tls: useTls ? {} : undefined,
+            // Según docs de Upstash: usar tls: {} para conexiones TLS
+            tls: isUpstash ? {} : undefined,
+            // Configuración recomendada para Bull con Redis cloud
             maxRetriesPerRequest: null,
             enableReadyCheck: false,
-            retryStrategy: (times: number) => Math.min(times * 1000, 30000),
+            lazyConnect: true,
+            connectTimeout: 30000,
+            disconnectTimeout: 5000,
+            keepAlive: 30000,
           },
         };
       },
