@@ -1,7 +1,10 @@
 import { Module, Global, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const PgBoss = require('pg-boss');
+import * as PgBossImport from 'pg-boss';
+
+// Handle both CommonJS and ESM imports
+const PgBoss = (PgBossImport as any).default || PgBossImport;
 
 export const PG_BOSS = 'PG_BOSS';
 
@@ -28,7 +31,7 @@ export const PG_BOSS = 'PG_BOSS';
                     retryDelay: 5000,
                     retryBackoff: true,
                     expireInHours: 24,
-                    archiveCompletedAfterSeconds: 3600, // 1 hora
+                    archiveCompletedAfterSeconds: 3600,
                     deleteAfterDays: 7,
                 });
 
